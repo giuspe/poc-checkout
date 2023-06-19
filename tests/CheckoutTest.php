@@ -172,7 +172,7 @@ class CheckoutTest extends TestCase
     public function with_invalid_rules()
     {
         $this->expectException(InvalidRuleException::class);
-        $checkout = new Checkout($this->defaultInvalidRules);
+        $checkout = (new Checkout($this->defaultInvalidRules))->withValidation()->buildRules();
     }
 
     /**
@@ -184,7 +184,7 @@ class CheckoutTest extends TestCase
     {
         
         $cart = $this->defaultCart;
-        $checkout = new Checkout($this->defaultInvalidRules, Checkout::DEFAULT_RULE_DELIMITER, Checkout::DEFAULT_FIELD_DELIMITER, FALSE);
+        $checkout = new Checkout($this->defaultInvalidRules, Checkout::DEFAULT_RULE_DELIMITER, Checkout::DEFAULT_FIELD_DELIMITER);
         foreach ($cart as $item) {
             $checkout->add($item[0], $item[1]);
         }
@@ -199,7 +199,7 @@ class CheckoutTest extends TestCase
     public function with_invalid_item()
     {
         $this->expectException(InvalidItemException::class);
-        $checkout = new Checkout($this->defaultRulesAsString);
+        $checkout = (new Checkout($this->defaultRulesAsString))->withValidation();
         $checkout
             ->add('A', 1)
             ->add('A', 3)
@@ -213,7 +213,7 @@ class CheckoutTest extends TestCase
      */
     public function with_empty_cart()
     {
-        $checkout = new Checkout($this->defaultRulesAsString);
+        $checkout = (new Checkout($this->defaultRulesAsString))->buildRules();
         $this->assertEquals(0, $checkout->total());
     }
 
@@ -232,6 +232,25 @@ class CheckoutTest extends TestCase
             ->add('C', 1)
             ->add('A', 1)
             ->add('B', 1);
+        $this->assertEquals(62, $checkout->total());
+    }
+
+    /**
+     * @test
+     * @covers Checkout
+     * @testdox Is possible to add multiple items as array, with chaining.
+     */
+    public function add_items_with_array_and_chaining()
+    {
+        $checkout = new Checkout($this->defaultRulesAsString);
+        $items = [
+            'A',
+            ['A', 3],
+            ['B', 2],
+            ['C'],
+            ['A', 1]
+        ];
+        $checkout->addMultiple($items)->add('B');
         $this->assertEquals(62, $checkout->total());
     }
 
