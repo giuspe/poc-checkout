@@ -19,7 +19,7 @@ class CheckoutTest extends TestCase
 
     public function setUp(): void
     {
-        $this->defaultRulesAsString = "
+        $this->defaultRulesAsString = <<<RULES
             A|10;
             A|20|3;
             A|40|5;
@@ -30,7 +30,8 @@ class CheckoutTest extends TestCase
             C|10;
             C|20|3;
             B|15|4;
-        ";
+        RULES;
+
         $this->defaultRulesAsArrayOfStrings = [
             "A|10",
             "A|20|3",
@@ -55,7 +56,7 @@ class CheckoutTest extends TestCase
             ["sku" => "C", "price" => 20, "quantity" => 3],
             ["sku" => "B", "price" => 15, "quantity" => 4],
         ];
-        $this->defaultInvalidRules = "
+        $this->defaultInvalidRules = <<<RULES
             A;
             A|20|3;
             A|40|5;
@@ -66,7 +67,7 @@ class CheckoutTest extends TestCase
             C|10;
             C|20|3;
             B|15|4;
-        ";
+        RULES;
 
         $this->defaultCart = [
             ['A', 1],
@@ -126,12 +127,12 @@ class CheckoutTest extends TestCase
     /**
      * @test
      * @covers Checkout
-     * @testdox Checkout using custom separators to parse the rules.
+     * @testdox Checkout using custom delimiters to parse the rules.
      */
-    public function with_custom_rules_separators()
+    public function with_custom_rules_delimiters()
     {
         $cart = $this->defaultCart;
-        $rules = "
+        $rules = <<<RULES
             A;10
             A;20;3
             A;40;5
@@ -142,7 +143,8 @@ class CheckoutTest extends TestCase
             C;10
             C;20;3
             B;15;4
-        ";
+        RULES;
+
         $checkout = new Checkout($rules, PHP_EOL, ";");
         foreach ($cart as $item) {
             $checkout->add($item[0], $item[1]);
@@ -381,7 +383,7 @@ class CheckoutTest extends TestCase
      */
     public function with_overwritten_rules()
     {
-        $rules = "
+        $rules = <<<RULES
             A|10;
             A|20|3;
             A|40|5;
@@ -389,7 +391,8 @@ class CheckoutTest extends TestCase
             B|7|2;
             C|10;
             A|30|5;
-        ";
+        RULES;
+
         $checkout = new Checkout($rules);
         $checkout
             ->add('A')
@@ -410,14 +413,16 @@ class CheckoutTest extends TestCase
     {
         $this->expectException(InvalidConfigException::class);
 
-        $rules = "
+        // we don't set any rule for a single 'A' item, total calculation will be inconsistemt
+        $rules = <<<RULES
             A|20|3;
             A|40|5;
             B|5;
             B|7|2;
             C|10;
             A|30|5;
-        ";
+        RULES;
+
         $checkout = new Checkout($rules);
         $checkout
             ->add('A')
