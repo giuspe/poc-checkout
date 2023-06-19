@@ -1,0 +1,6 @@
+/build/*
+/vendor/*
+/.ddev
+/.vscode
+/.phpunit.cache
+/.phpunit.result.cache
