@@ -54,40 +54,38 @@ class Checkout
 
     /* Public methods */
 
-    public function withValidation() {
+    public function withValidation(): Checkout {
         $this->validateRules = TRUE;
 
         return $this;
     }
 
-    public function buildRules() {
+    public function buildRules(): Checkout {
         if (count($this->unparsedRules) > 0) {
             $this->parseRules($this->unparsedRules);
         } else {
             $this->rules = [];
         }
         return $this;
-
     }
 
     /**
      * Adds item to current checkout.
-     * @param string $item SKU of item
+     * 
+     * @param string $itemSku SKU of item
      * @param int $qty Number of items to add (defaults to 1)
-     * @throws Exception Item could not be parsed, or we don't have a checkout rule for it.
+     * @throws InvalidItemException Item could not be parsed, or we don't have a checkout rule for it.
      */
-    public function add(string $item, int $qty = 1): Checkout
+    public function add(string $itemSku, int $qty = 1): Checkout
     {
         if(!$this->rules) {
             $this->buildRules();
         }
 
-        $itemSku = $item;
         $itemQuantity = max((int) $qty, 1);
 
         // Check that we have a valid item code, otherwise raise exception.
         if (strlen(trim($itemSku)) < 1) {
-            // 2DO Write a custom Exception.
             throw new InvalidItemException("Could not parse item code.");
         }
 
@@ -109,9 +107,9 @@ class Checkout
 
     /**
      * Adds multiple items ([sku, [sku],[sku, qty],...]) to current checkout.
-     * @param string $item SKU of item
-     * @param int $qty Number of items to add (defaults to 1)
-     * @throws Exception Item could not be parsed, or we don't have a checkout rule for it.
+     * 
+     * @param array $items array of SKUs, in plain format or with quantity
+     * @throws InvalidItemException Item could not be parsed, or we don't have a checkout rule for it.
      */
     public function addMultiple(array $items): Checkout
     {
@@ -130,14 +128,24 @@ class Checkout
         return $this;
     }
 
-    public function addRule(string $sku, int $price, int $quantity = 1) {
+    /**
+     * Adds a single checkout rule.
+     * 
+     * @param string $sku SKU of the item to add
+     * @param int $price price for the rule
+     * @param int $quantity quantity associated to the rule (defaults to 1)
+     * @throws InvalidRuleException If SKU, quantity and/or price are invalid.
+     */
+    public function addRule(string $sku, int $price, int $quantity = 1): Checkout {
         if(!$this->rules) {
             $this->rules = [];
         }
 
-        if ($quantity < 1 || $price < 0) {
+        $sku = trim($sku);
+
+        if (strlen($sku) < 1 || $quantity < 1 || $price < 0) {
             // rule exception
-            throw new InvalidRuleException("Checkout rules need quantity and price to be greater than 0");
+            throw new InvalidRuleException("Checkout rules need a valid SKU, and quantity/price should be greater than 0");
         }
 
         if (!\array_key_exists ($sku, $this->rules) || \is_callable ($this->rules[$sku])) {
@@ -154,7 +162,16 @@ class Checkout
         return $this;
     }
     
-    public function addCustomRule(string $sku, callable $priceCallback) {
+    /**
+     * Adds a complex item-level price rule, backed by a callback function.
+     * The callback function must accept a single int parameter (quantity)
+     * and return a single int value (calculated price).
+     * 
+     * @param string $sku SKU of the item to add
+     * @param callable $priceCallback custom logic to calculate price [function (int): int]
+     * @throws InvalidRuleException
+     */
+    public function addCustomRule(string $sku, callable $priceCallback): Checkout {
         // We inspect the callable to make sure we can use it as rule.
         $reflection = new \ReflectionFunction($priceCallback);
         if ('int' != $reflection->getReturnType()) {
@@ -171,7 +188,15 @@ class Checkout
         return $this;
     }
 
-    public function addTotalModifier(callable $totalCallback) {
+    /**
+     * Adds a complex cart-level price modifier, backed by a callback function.
+     * The callback function must accept two parameters (int currentPrice, array items) and return a int value (updated total)
+     * and return a single int value (calculated price).
+     * 
+     * @param callable $totalCallback custom logic to modify checkout total [function (int, array): int]
+     * @throws InvalidRuleException
+     */
+    public function addTotalModifier(callable $totalCallback): Checkout {
         // We inspect the callable to make sure we can use it as checkout rule.
         $reflection = new \ReflectionFunction($totalCallback);
         if ('int' != $reflection->getReturnType()) {
@@ -193,10 +218,11 @@ class Checkout
     }
 
     /**
-     * Calculate checkout total based on current rules.
+     * Calculate checkout total based on current rules and custom total modifiers.
      * @return int Total price
+     * @throws InvalidConfigException
      */
-    public function total()
+    public function total(): int
     {
         // No (valid) rules: raise an exception.
         if (!$this->rules || count($this->rules) < 1) {
@@ -280,8 +306,9 @@ class Checkout
      * Parse a set of checkout rules in string or array form.
      *
      * @param string|array $rules
+     * @throws InvalidRuleException
      */
-    protected function parseRules(array $rules)
+    protected function parseRules(array $rules): array
     {
         $parsedRules = [];
 
